@@ -1,0 +1,145 @@
+---
+title: "Project 1"
+author: "Munkhnaran Gankhuyag"
+date: "September 18, 2017"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+Chess Data.
+```{r}
+project1_data <- read.table("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/tournamentinfo.txt",header = FALSE, sep = "\t", stringsAsFactors = FALSE)
+head(project1_data)
+library(stringr)
+project1_data[1:10,]
+                          
+```
+
+#The data for each player is in 2 lines, so I combined the first and second row of the player by finding the sequence for the lines.
+```{r}
+Chess_Data <- paste (project1_data[seq(5,196,3),],project1_data[seq(6,196,3),1],sep = "")
+seq
+head(Chess_Data)
+```
+
+#Where needed, I created seprators using the same '|' mark that the data uses. Also, I decided to input an "end" to mark where data becomes is irrelivant.
+
+```{r}
+Chess_data1 <- str_replace_all(Chess_Data, pattern = "\\:\\S?","|")
+str_sub(Chess_data1,130, 134) <- "|end"
+str_sub(Chess_data1,119, 120) <- " |"
+head(Chess_data1)
+```
+#Using the | as a seperator, I created a table.
+
+```{r}
+Chess_data2 <-read.table(text = Chess_data1, sep = "|")
+head(Chess_data2)
+```
+
+#Create a data frame out of the new table and name the columns.
+```{r}
+chess_data3 <- data.frame(Chess_data2[,1:14])
+colnames(chess_data3) <-c("ID","Player","Score","Game1","Game2","Game3","Game4","Game5","Game6","Game7","State","USCF_ID","Pre_Rating", "Post_Rating")
+
+chess_data3[1:10,]
+
+```
+#Clean out the data frame.
+```{r}
+chess_data3$USCF_ID <- unlist(str_extract_all(chess_data3$USCF_ID,"\\(?\\d{8}?"))
+chess_data3$Pre_Rating <- substr(chess_data3$Pre_Rating, 1, 5)
+chess_data3$Post_Rating <- substr(chess_data3$Post_Rating, 1, 4)
+
+chess_data3[1:10,]
+
+```
+#Create a new data frame with just the opponent number and not the outcome of the match
+
+```{r}
+Chess_data_4 <- chess_data3
+
+Chess_data_4$Game1 <- unlist((str_extract(Chess_data_4$Game1, "\\d+")))
+Chess_data_4$Game2 <- unlist((str_extract(Chess_data_4$Game2, "\\d+")))
+Chess_data_4$Game3 <- unlist((str_extract(Chess_data_4$Game3, "\\d+")))
+Chess_data_4$Game4 <- unlist((str_extract(Chess_data_4$Game4, "\\d+")))
+Chess_data_4$Game5 <- unlist((str_extract(Chess_data_4$Game5, "\\d+")))
+Chess_data_4$Game6 <- unlist((str_extract(Chess_data_4$Game6, "\\d+")))
+Chess_data_4$Game7 <- unlist((str_extract(Chess_data_4$Game7, "\\d+")))
+head(Chess_data_4)
+```
+
+#Create a matrix from the data frame of just the ID and the pre rank of the opponent.
+
+```{r}
+
+Chess_data_Ranks <- matrix(c(Chess_data_4$ID, Chess_data_4$Pre_Rating), ncol = 2,nrow = 64)
+colnames(Chess_data_Ranks) <- c("ID", "Pre_Rank")
+Chess_data_Ranks <- data.frame(Chess_data_Ranks)
+
+head(Chess_data_Ranks)
+
+```
+#Match opponent ID with their Pre rank scores and create a new tablae with just opponents pre rank averages.
+
+
+```{r}
+Chess_data_Ranks2 <- Chess_data_4
+
+Chess_data_Ranks2$Game1 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game1, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game2 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game2, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game3 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game3, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game4 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game4, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game5 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game5, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game6 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game6, Chess_data_Ranks$ID)]
+Chess_data_Ranks2$Game7 <- Chess_data_Ranks$Pre_Rank[ match(Chess_data_Ranks2$Game7, Chess_data_Ranks$ID)]
+
+head(Chess_data_Ranks2)
+
+```
+#Turn all values in the game to a numeric value to cacluclate new rank
+
+```{r}
+Chess_data_Ranks2$Game1 <- as.numeric(as.character(Chess_data_Ranks2$Game1))
+Chess_data_Ranks2$Game2 <- as.numeric(as.character(Chess_data_Ranks2$Game2))
+Chess_data_Ranks2$Game3 <- as.numeric(as.character(Chess_data_Ranks2$Game3))
+Chess_data_Ranks2$Game4 <- as.numeric(as.character(Chess_data_Ranks2$Game4))
+Chess_data_Ranks2$Game5 <- as.numeric(as.character(Chess_data_Ranks2$Game5))
+Chess_data_Ranks2$Game6 <- as.numeric(as.character(Chess_data_Ranks2$Game6))
+Chess_data_Ranks2$Game7 <- as.numeric(as.character(Chess_data_Ranks2$Game7))
+```
+
+#Create a new column calculating the 
+
+```{r}
+New_Rating <- round(rowMeans(Chess_data_Ranks2[,4:10],na.rm = TRUE),digits = 0)
+
+Chess_data_Ranks2$New_Rating <- New_Rating
+
+Chess_data_Ranks2[,c(1,2,13,15)]
+
+
+
+```
+
+```{r}
+
+Chess_data_Ranks2$Pre_Rating <- as.numeric(as.character(Chess_data_Ranks2$Pre_Rating))
+Ranking_differences <- Chess_data_Ranks2$New_Rating -  Chess_data_Ranks2$Pre_Rating
+
+Chess_data_Ranks2$Ranking_differences <- Ranking_differences
+
+head(Chess_data_Ranks2)
+
+summary(Chess_data_Ranks2$Ranking_differences)
+
+Chess_data_Ranks2
+
+```
+
+
+
+
+
+
