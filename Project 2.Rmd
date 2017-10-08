@@ -1,0 +1,89 @@
+---
+title: "Project 2"
+author: "Munkhnaran Gankhuyag"
+date: "October 7, 2017"
+output: html_document
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+Loading the data set and obserrving the structure.
+
+```{r}
+Businesses <- read.csv("1988_2014_payroll_firmsize.csv", header = T, sep = TRUE)
+str(Payroll)
+```
+
+Get rid of the Empty rows.
+
+```{r}
+B2 <- Businesses[-c(1:4,32,60,88,116,122:132),-c(14:16) ]
+B2
+```
+
+Seperate the 4 tables consolidated together.
+
+```{r}
+Firms <- data.frame(B2[1:27,2:13])
+Establishment <- data.frame(B2[28:54,2:13])
+Employment <- data.frame(B2[55:81,2:13])
+Payroll <- data.frame(B2[82:108,2:13])
+```
+
+Column names for four tables
+```{R}
+colnames(Firms) <- c("Year", "Non-employers",	"Employer Totals",	"0*",	"Less than 4"	,"5 to 9",	"10 to 19"	,"Less than 20",	"20 to 99",	"100 to 499",	"Less than 500",	"over 500")
+colnames(Establishment) <- c("Year", "Non-employers",	"Employer Totals",	"0*",	"Less than 4"	,"5 to 9",	"10 to 19"	,"Less than 20",	"20 to 99",	"100 to 499",	"Less than 500",	"over 500")
+colnames(Employment) <- c("Year", "Non-employers",	"Employer Totals",	"0*",	"Less than 4"	,"5 to 9",	"10 to 19"	,"Less than 20",	"20 to 99",	"100 to 499",	"Less than 500",	"over 500")
+colnames(Payroll) <- c("Year", "Non-employers",	"Employer Totals",	"0*",	"Less than 4"	,"5 to 9",	"10 to 19"	,"Less than 20",	"20 to 99",	"100 to 499",	"Less than 500",	"over 500")
+```
+
+Change the order of the datasets.
+
+```{r}
+Firms <- arrange(Firms, -desc(Year))
+Establishment <- arrange(Establishment, -desc(Year))
+Employment <- arrange(Employment, -desc(Year))
+Payroll <- arrange(Payroll, -desc(Year))
+View(Firms)
+```
+
+
+```{r}
+library(lubridate) # for working with dates
+library(ggplot2)  # for creating graphs
+library(scales)   # to access breaks/formatting functions
+library(gridExtra) # for arranging plots
+```
+
+
+```{r}
+qplot(x=Firms$Year, y=Firms$`Less than 4`,
+      data=Firms, na.rm=TRUE,
+      main="Number of 0-4 Size Firms",
+      xlab="Year", ylab="Number of Firms")
+```
+
+```{r}
+ggplot(Firms, aes(Firms$Year, Firms$`Less than 4`)) +
+  geom_point(na.rm = TRUE, color = "red") +
+  ggtitle("Number of Small Businesses with Less than 4 Employers")+
+  xlab("Year") + ylab("Number of Businesses")
+
+```
+
+```{r}
+ggplot()+
+  geom_point(data = Firms, aes(Firms$Year, Firms$`Less than 4`), color = "red") +
+  geom_point(data = Employment, aes(Employment$Year, Employment$`Less than 4`), color = "blue") +
+  geom_point(data = Establishment, aes(Establishment$Year, Establishment$`Less than 4`), color = "green")+
+   geom_point(data = Payroll, aes(Payroll$Year, Payroll$`Less than 4`), color = "black")+
+  ggtitle("Number of Small Businesses with Less than 4 Employers")+
+  xlab("Year") + ylab("Number of Businesses")+
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
