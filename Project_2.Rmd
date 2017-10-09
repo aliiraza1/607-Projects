@@ -1,10 +1,8 @@
 ---
-title: "Project2"
+title: "Project 2"
 author: "Munkhnaran Gankhuyag"
 date: "October 7, 2017"
-output:
-  pdf_document: default
-  html_document: default
+output: html_document
 ---
 ##Load Packages
 ```{r}
@@ -20,6 +18,7 @@ Load the Data
 ```{r}
 h1b <- read.csv(url("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Project%202/2007_2017_H1B_trend.csv"), stringsAsFactors = FALSE)
 str(h1b)
+View(h1b)
 ```
 
 I'm particulary interested in which continent has the most h1b's. So lets take the data containing countries.
@@ -124,6 +123,21 @@ head(Payroll)
 
 
 ```{r}
+library(lubridate) # for working with dates
+library(ggplot2)  # for creating graphs
+library(scales)   # to access breaks/formatting functions
+library(gridExtra) # for arranging plots
+```
+
+
+```{r}
+qplot(x=Firms$Year, y=Firms$`Less than 4`,
+      data=Firms, na.rm=TRUE,
+      main="Number of 0-4 Size Firms",
+      xlab="Year", ylab="Number of Firms")
+```
+
+```{r}
 ggplot(Firms, aes(Firms$Year, Firms$`Less than 4`)) +
   geom_point(na.rm = TRUE, color = "red") +
   ggtitle("Number of Small Businesses with Less than 4 Employers")+
@@ -150,6 +164,7 @@ five_9 <- ggplot()+
   geom_point(data = Firms, aes(Firms$Year, Firms$`5 to 9`), color = "red") + 
   geom_point(data = Employment, aes(Employment$Year, Employment$`5 to 9`), color = "blue") + 
   geom_point(data = Establishment, aes(Establishment$Year, Establishment$`5 to 9`), color = "green")+ 
+  geom_point(data = Payroll, aes(Payroll$Year, Payroll$`5 to 9`), color = "black")+
   ggtitle("Number of Small Businesses with 5 to 9 Employers")+
   xlab("Year") + ylab("Number of Businesses")+
   theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))

@@ -1,0 +1,74 @@
+---
+title: "Project 2 Data 1"
+author: "Munkhnaran Gankhuyag"
+date: "October 8, 2017"
+output: html_document
+---
+##H1B Data
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+Load the Data
+```{r}
+h1b <- read.csv(url("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Project%202/2007_2017_H1B_trend.csv"), stringsAsFactors = FALSE)
+str(h1b)
+View(h1b)
+```
+
+I'm particulary interested in which continent has the most h1b's. So lets take the data containing countries.
+
+```{r}
+Country <- data.frame(h1b[18:37,])
+colnames(Country) <- c("Countries",2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,"Total")
+head(Country)
+```
+
+Lets add a column identifying the correct continent for each row.
+
+```{r}
+Country$Continent <- c("Asia", "Asia","Asia","Asia","North America","Asia","North America","Europe","Asia","Europe","South America","Asia","Asia","Europe","Europe","Asia","Europe","Asia","South America","Europe")
+
+Country
+```
+
+I want the numbers to read as numbers and I want to remove the commas.
+
+```{r}
+cont <- select(Country,Countries,Continent,8:12)
+cont$`2013` <- as.numeric(gsub(",","",cont$`2013`))
+cont$`2014` <- as.numeric(gsub(",","",cont$`2014`))
+cont$`2015` <- as.numeric(gsub(",","",cont$`2015`))
+cont$`2016` <- as.numeric(gsub(",","",cont$`2016`))
+cont$`2017` <- as.numeric(gsub(",","",cont$`2017`))
+cont
+```
+
+Lets group the data by the continents we created.
+
+```{r}
+cont$Total5yrs = rowSums(cont[3:7])
+
+h1b_continents <- summarise(group_by(cont,Continent),totalvisas = sum(Total5yrs))
+h1b_continents
+
+
+
+```
+
+Create a visual graph containing the data.
+
+```{r}
+ggplot(h1b_continents, aes(x="", y=totalvisas, fill=Continent)) +
+  geom_bar(width = 1, stat = "identity")
+
+ggplot(h1b_continents, aes(x="", y=totalvisas, fill=Continent)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start = 0)
+
+
+
+````
