@@ -1,0 +1,424 @@
+---
+title: "607 Project"
+author: "Munkhnaran Gankhuyag"
+date: "December 06, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r packages, include=FALSE}
+library(Quandl)
+library(XML)
+library(rvest)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(psych)
+```
+
+#Motivation
+Cryptocurrency is a digital currency that is created and managed through the use of cryptography, which is an advanced type of encryption technique. Bitcoin was one of the earliest forms of cryptocurrency and since then, many other types of cryptocurrencies have been created. I first heard about Bitcoin back in 2013, when I was a financially struggling college student, and I thought 80 Dollars per coin was a bit too much. Today, one bitcoin is about 100 times that amount.
+
+Below is the index for November 19th 2017 from https://www.coindesk.com
+
+Today's Open: $8,033.94 Today's High: $8,049.12 Today's Low: $8,021.33 Today's Closed: $8,034.42
+
+*Update: Since the time this proposal was written, Bitcoin has increased dramatically. 
+Below is the index for December 9th 2017 from https://www.coindesk.com
+
+Today's Open: $16,057.15 Today's High: $16,291.68 Today's Low: $15,538.25
+
+Even though Bitcoin seems like a great investment, many investors remain skeptical. The main reason is bitcoin and other cryptocurrencies are virtual currencies that are not backed by anything. Since there are a limited amount of bitcoin(20 million), the market purely fluctuates on demand, making it extremely volatile. This gives spectators reason to believe it is a bubble. Currently, many new investors, attracted by its potential, are entering the market, increasing its value significantly, but this can change if the demand drops. Currently there are many theories out there, but for now, I wanted to see how volatile bitcoin is compared to other currencies. 
+
+
+#Obtain the Data
+
+##Bitcoin API from Quandl
+Since bitcoin is the most widely known cryptocurrency, there is a lot of data available for it. 
+I was able to find an API for Bitcoin's historical data. 
+
+```{r}
+#Daily Bitcoin exchange rate (BTC vs. USD) on Bitstamp from 09/13/2011 to 12/09/2017
+Quandl.api_key('mxcqtzYcf5Co4fbG3WAX')
+Bitcoin <- Quandl('BCHARTS/BITSTAMPUSD', start_date='2011-01-01', end_date ='2017-12-07')
+head(Bitcoin )
+tail(Bitcoin)
+```
+
+##Main Competitors
+The second tier of cryptocurrencies in terms of popularity include Ethereum, Litecoin. I was interested in those two, plus a couple more, Dash and Bitcoin cash. I was able to find a csv file on the historical data from the website: https://coinmetrics.io/data-downloads/
+
+I saved the csv files in Github.
+```{r}
+Bc_cash <- read.csv("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Final/bch.csv", header = TRUE, stringsAsFactors = FALSE)
+Dash <- read.csv("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Final/dash.csv", header = TRUE, stringsAsFactors = FALSE)
+Ethereum <- read.csv("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Final/eth.csv", header = TRUE, stringsAsFactors = FALSE)
+Litecoin <- read.csv("https://raw.githubusercontent.com/mikegankhuyag/607-Projects/master/Final/ltc.csv", header = TRUE, stringsAsFactors = FALSE)
+head(Bc_cash)
+head(Dash)
+head(Ethereum)
+head(Litecoin)
+```
+
+##New Comers
+I was interested in two coins that are currently valued really low, Ripple and Tether.
+I was able to find the historical data on https://coinmarketcap.com.
+Since I couldn't download it, I decided to scrape the data.
+
+```{r}
+Rip <- read_html("https://coinmarketcap.com/currencies/ripple/historical-data/?start=20130428&end=20171209")
+Tet <- read_html("https://coinmarketcap.com/currencies/tether/historical-data/?start=20130428&end=20171209")
+```
+
+
+```{r}
+Ripp <- html_text(html_nodes(Rip, "td"))
+Rippl <- matrix(Ripp, ncol = 7, byrow = TRUE)
+```
+```{r}
+Ripple <- data.frame(Rippl[2:1588,], stringsAsFactors = TRUE)
+colnames(Ripple) <- c("Date","Open","High","Low","Close","Volume","Market Cap")
+head(Ripple)
+```
+```{r}
+Teth <- html_text(html_nodes(Tet, "td"))
+Tethe <- matrix(Teth, ncol = 7, byrow = TRUE)
+```
+```{r}
+Tether <- data.frame(Tethe[2:1013,], stringsAsFactors = TRUE)
+colnames(Tether) <- c("Date","Open","High","Low","Close","Volume","Market Cap")
+head(Tether)
+```
+
+#Cleaning the data
+I want all the to be in the same format as the Bitcoin API.
+For the CSV files, I first wanted to reorder the data since it starts from the earliest point.
+
+
+```{r}
+Bc_cash <-Bc_cash[130:1,]
+Dash <-Dash[1393:1,]
+Ethereum <-Ethereum[854:1,]
+Litecoin <-Litecoin[1685:1,]
+```
+
+The Bitcoin API is in a YYYY-MM-DD format.
+So I needed to change that all the dates to that format.
+
+```{r}
+Bc_cash$date <- as.Date(Bc_cash$date, format = "%m/%d/%Y")
+Ethereum$date <- as.Date(Ethereum$date, format = "%m/%d/%Y")
+Dash$date <- as.Date(Dash$date, format = "%m/%d/%Y")
+Litecoin$date <- as.Date(Litecoin$date, format = "%m/%d/%Y")
+```
+
+Change column name 'date' to 'Date'
+
+```{r}
+colnames(Bc_cash)[1] <- "Date"
+colnames(Ethereum)[1] <- "Date"
+colnames(Dash)[1] <- "Date"
+colnames(Litecoin)[1] <- "Date"
+```
+
+
+Since the two scraped data is from a html website, all of it needs to be reformatted.
+```{r, message= FALSE }
+Tether[,2:5] %<>% 
+      mutate_each(funs(if(is.factor(.)) as.character(.) else .)) %<>% 
+       mutate_each(funs(if(is.character(.)) as.numeric(.) else .))
+Ripple[,2:5] %<>% 
+      mutate_each(funs(if(is.factor(.)) as.character(.) else .)) %<>% 
+       mutate_each(funs(if(is.character(.)) as.numeric(.) else .))
+```
+Also, change the date format to YYYY-MM-DD format.
+```{r}
+Tether$Date <- as.Date(Tether$Date, format = "%b %d, %Y")
+Ripple$Date <- as.Date(Ripple$Date, format = "%b %d, %Y")
+```
+
+#Combining the data
+Now that all of our data is in consistent format,
+lets get all the variables needed for analysis.
+
+I want to average out the highs and lows to get one price for the day.
+```{r}
+require(magrittr)
+Bitcoin %<>% mutate(bitcoin_price = (High + Low)/2,
+                bitcoin_gain = Close - Open)
+Ripple %<>% mutate(ripple_price = (High + Low)/2,
+                ripple_gain  = Close - Open)
+Tether %<>% mutate(tether_price = (High + Low)/2, 
+                tether_gain =  Close - Open)
+```
+
+Selecting the data we need.
+```{r}
+Bitcoin_data <- select(Bitcoin, Date,bitcoin_price)
+Ripple_data <- select(Ripple, Date, ripple_price)
+Tether_data <- select(Tether, Date, tether_price)
+Ethereum_data <- select(Ethereum, Date, price.USD.)
+Dash_data <- select(Dash, Date, price.USD.)
+Bc_cash_data <- select(Bc_cash, Date, price.USD.)
+Litecoin_data <- select(Litecoin, Date, price.USD.)
+```
+
+
+Since, all of our data is in the same format, we join them using the 'Date' field as the identifier.
+Bitcoin data has the most rows, so I used it as the left part of left join.
+```{r}
+cryptocurrencies <-
+left_join(
+left_join(
+left_join(
+left_join(
+  left_join(
+    left_join(Bitcoin_data, Ripple_data, "Date"),
+    Tether_data, "Date"),
+    Ethereum_data, "Date"),
+    Dash_data, "Date"),
+    Bc_cash_data, "Date"),
+    Litecoin_data, "Date")
+colnames(cryptocurrencies) <- c("Date","bitcoin_price","ripple_price","tether_price",
+                                 "ethereum_price", "dash_price","bc_cash_price","litecoin_price")
+head(cryptocurrencies)
+```
+
+Since the prices of the currencies between each other have huge differences, it would be hard to compare them.
+I decided to calculate the relative change between them.
+
+I created another table with the previous day's price, added 1 to the day and did a left join to match the day.
+
+```{r}
+Prior_day <- cryptocurrencies[2:2278,] 
+Prior_day$Date <- as.Date(Prior_day$Date)+1
+colnames(Prior_day) <- c("Date","yes_bitcoin_price","yes_ripple_price","yes_tether_price",
+                                 "yes_ethereum_price", "yes_dash_price","yes_bc_cash_price","yes_litecoin_price")
+
+r_cyptocurrencies <- left_join(cryptocurrencies, Prior_day, by ="Date")
+r_cyptocurrencies <- select(r_cyptocurrencies, Date, bitcoin_price, yes_bitcoin_price, ripple_price, yes_ripple_price, tether_price, yes_tether_price,
+                            ethereum_price, yes_ethereum_price, dash_price, yes_dash_price, bc_cash_price, yes_bc_cash_price, litecoin_price, yes_litecoin_price)
+head(r_cyptocurrencies)
+```
+Calculate relative change
+```{r}
+r_cyptocurrencies %<>% mutate(bitcoin_change = ((bitcoin_price - yes_bitcoin_price)/yes_bitcoin_price)*100,
+                              ripple_change =  ((ripple_price - yes_ripple_price)/yes_ripple_price)*100,
+                              tether_change =  ((tether_price - yes_tether_price)/yes_tether_price)*100,
+                              ethereum_change =  ((ethereum_price - yes_ethereum_price)/yes_ethereum_price)*100,
+                              dash_change =  ((dash_price - yes_dash_price)/yes_dash_price)*100,
+                              bc_cash_change =  ((bc_cash_price - yes_bc_cash_price)/yes_bc_cash_price)*100,
+                              litecoin_change =  ((litecoin_price - yes_litecoin_price)/yes_litecoin_price)*100)
+```
+
+
+
+Create a new table with just the relative changes.
+```{r}
+relative_change <- select(r_cyptocurrencies, "Date", ends_with("change"))
+relative_change_ <- relative_change
+
+relative_change_[is.na(relative_change_ <- relative_change)] <- 0
+head(relative_change_)
+```
+Round the percentages
+```{r}
+relative_change_$bitcoin_change <- round(relative_change_$bitcoin_change, 4)
+relative_change_$ripple_change <- round(relative_change_$ripple_change ,4)
+relative_change_$tether_change <- round(relative_change_$tether_change ,4)
+relative_change_$ethereum_change <- round(relative_change_$ethereum_change ,4)
+relative_change_$dash_change <- round(relative_change_$dash_change ,4)
+relative_change_$bc_cash_change <- round(relative_change_$bc_cash_change ,4)
+relative_change_$litecoin_change <- round(relative_change_$litecoin_change ,4)
+```
+
+#Analysis
+##Relative Change
+Tidy the data for analysis.
+The mean relative change shows the average changes.
+```{r}
+tidy_change <- (gather(relative_change_, key= Currency, "relative_change", desc("Date")))
+tidy_change %>% filter(relative_change !=0, is.finite(relative_change) == TRUE) %>% 
+  group_by(Currency) %>%  summarise(mean = mean(relative_change), count = n())
+```
+From the data, we can see that Bitcoin prices has a negative relative change. This might be due to some skews in our data.
+Lets limit high percentage changes.
+
+```{r}
+tidy_change <- (gather(relative_change_, key= Currency, "relative_change", desc("Date")))
+tidy_change %>% filter(relative_change !=0, is.finite(relative_change) == TRUE, relative_change < 50, relative_change > -50) %>% 
+  group_by(Currency) %>%  summarise(mean = mean(relative_change), count = n())
+```
+
+We see that when we limit the relative changes between -50 and 50, there is significant changes to the mean, but not the count.
+
+```{r}
+tidy_change <- (gather(relative_change_, key= Currency, "relative_change", desc("Date")))
+tidy_change %>% filter(relative_change !=0, is.finite(relative_change) == TRUE, relative_change < 10, relative_change > -10) %>% 
+  group_by(Currency) %>%  summarise(mean = mean(relative_change), count = n())
+```
+When we limit the relative change to between -10 and 10, most of the mean is negative.
+This means for 5/7 observations, the increases are due to high shifts in the market in the day, but most days, they are losing value.
+This is opposite for Bitcoin, which is increasing on most days and its losses come from large drops in the market.
+For Tether, the market looks surprisingly stable. This may be due to it being a small player in the market.
+
+Let's visualize the relative changes.
+
+```{r, message=FALSE}
+ggplot(data =tidy_change[which(tidy_change$relative_change != 0),]) +
+  geom_point(mapping = aes(x= Date, y= relative_change, color= Currency,fill = Currency), position = "jitter")+
+  facet_wrap(~ Currency, nrow = 2)+
+  ylim(-100,100)
+```
+
+From the visualization, we can see that the spread is very large for most of the currencies with exception to tether.
+Visualizing the relative changes together.
+
+```{r}
+ggplot(data =tidy_change[which(tidy_change$relative_change != 0),]) +
+  geom_point(mapping = aes(x= Date, y= relative_change, color= Currency,fill = Currency),alpha = 1/5, position = "jitter") +
+  ylim(-50,50)+
+  theme(panel.background = element_rect(fill = 'gray'))+
+  ggtitle("Cryptocurrencies from 2011 to 2017",subtitle = "Relative Changes")
+
+
+```
+
+##Gain to Loss Ratio
+Let's dive deeper into how the currencies fluctuate and look at gain to loss ratio.
+Categorize for each relative change percentage to 'gain', 'loss' or 'no change'.
+```{r}
+tidy_change$lost_gain <- ifelse(tidy_change$relative_change > 0, "gain", 
+                                ifelse(tidy_change$relative_change ==0,"no,change","loss"))
+tidy_change[sample(nrow(iris), 10), ]
+```
+
+Untidy the data for analysis
+```{r}
+#All
+ratio<- tidy_change %>% group_by(Currency) %>% count(lost_gain)
+gain_loss_ratio <- ratio %<>% spread(lost_gain, n) %<>%   mutate(ratio = gain/loss)
+gain_loss_ratio <- select(gain_loss_ratio,Currency,ratio)
+#Limit -100 to 100
+ratio100<- tidy_change %>% filter(relative_change < 100, relative_change > -100) %>% group_by(Currency) %>% count(lost_gain)
+gain_loss_ratio100 <- ratio100 %<>% spread(lost_gain, n) %<>%   mutate(ratio100 = gain/loss)
+gain_loss_ratio100 <- select(gain_loss_ratio100,Currency,ratio100)
+
+#Limit -10 to 10
+ratio1<- tidy_change %>% filter(relative_change < 10, relative_change > -10) %>% group_by(Currency) %>% count(lost_gain)
+gain_loss_ratio1 <- ratio1 %<>% spread(lost_gain, n) %<>%   mutate(ratio10 = gain/loss)
+gain_loss_ratio1 <- select(gain_loss_ratio1,Currency,ratio10)
+
+```
+
+```{r}
+All_ratios <- inner_join(gain_loss_ratio,inner_join(gain_loss_ratio100,gain_loss_ratio1,by = "Currency"),by= "Currency")
+All_ratios$Currency <- c("Bitcoin Cash", "Bitcoin", "Dash", "Ethereum","Litecoin","Ripple","Tether")
+All_ratios
+```
+The gain to loss ratio table shows that Bitcoin has the highest ratio with over +25% margin over total losses.
+2ND is Tether with a +12% margin over total losses. The rest have more losses than gains in their history. 
+
+Lets visualize the results.
+
+```{r}
+ratio_bar <- ggplot(All_ratios, mapping = aes(y= ratio,x= Currency, fill=Currency))  +
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Gain to Loss Ratio")+
+  labs(y= "Ratio")
+ratio_bar + coord_flip()
+
+ratio_bar100 <- ggplot(All_ratios, mapping = aes(y= ratio100,x= Currency, fill=Currency))  +
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Gain to Loss Ratio: Relative Change Limit (-100:100)")+
+  labs(y= "Ratio")
+ratio_bar100 + coord_flip()
+
+ratio_bar1 <- ggplot(All_ratios, mapping = aes(y= ratio10,x= Currency, fill=Currency))+
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Gain to Loss Ratio: Relative Change Limit (-10:10)")+
+  labs(y= "Ratio")
+ratio_bar1 + coord_flip()
+  
+```
+
+When we compare the overall gains to losses, we can see that there is a significant drop for Ripple, Litecoin, Ethereum, Dash and Bitcoin cash.
+
+##Probability
+Lets look at the probability of currencies increasing on a given day, based on the count of gains and losses.
+```{r}
+gain_loss_counts <- tidy_change %>% group_by(Currency, lost_gain) %>% summarise(n=n())
+gain_loss_counts <- spread(gain_loss_counts, lost_gain, n)
+gain_loss_counts <- mutate(gain_loss_counts, probability = (gain/(gain+loss))) 
+probability <- select(gain_loss_counts, Currency, probability)
+
+gain_loss_counts100 <- tidy_change %>% filter(relative_change < 100, relative_change > -100) %>% 
+                      group_by(Currency, lost_gain) %>% summarise(n=n())
+gain_loss_counts100 <- spread(gain_loss_counts100, lost_gain, n)
+gain_loss_counts100 <- mutate(gain_loss_counts100, probability100 = (gain/(gain+loss)))
+probability100 <- select(gain_loss_counts100, Currency, probability100)
+
+gain_loss_counts10 <- tidy_change %>% filter(relative_change < 10, relative_change > -10) %>%
+             group_by(Currency, lost_gain) %>% summarise(n=n())
+gain_loss_counts10 <- spread(gain_loss_counts10, lost_gain, n)
+gain_loss_counts10 <- mutate(gain_loss_counts10, probability10 = (gain/(gain+loss)))
+probability10 <- select(gain_loss_counts10, Currency, probability10)
+
+All_probability <- inner_join(probability,inner_join(probability100,probability10,by = "Currency"),by= "Currency")
+All_probability$Currency <- c("Bitcoin Cash", "Bitcoin", "Dash", "Ethereum","Litecoin","Ripple","Tether")
+All_probability
+
+```
+The probability table shows that Bitcoin has the highest chance of increase on a given day with 55% and 
+that stays consistent when outliers are removed. Second is Tether with 53%. 
+The rest is in the 47%-49% range, but decreases when outliers are removed. out of the remaining 5, 
+Litecoin is most consistent, dropping from 48.5% to 47.4%.
+
+Lets visualize the results.
+
+```{r}
+facet_wrap(~All_ratios,nrow = 3)
+probability_bar <- ggplot(All_probability, mapping = aes(y=probability,x= Currency, fill=Currency))  +
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Probability of Increase within a day")+
+  labs(y= "Probability") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+probability_bar
+
+probability_bar100 <- ggplot(All_probability, mapping = aes(y= probability100,x= Currency, fill=Currency))  +
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Probability of Increase within a day: Relative Change Limit (-100:100)")+
+  labs(y= "Probability") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+probability_bar100
+
+probability_bar1 <- ggplot(All_probability, mapping = aes(y=probability10,x= Currency, fill=Currency))+
+  geom_bar(stat = "identity") +
+  ggtitle("Cryptocurrencies from 2011-2017", subtitle = "Probability of Increase within a day: Relative Change Limit (-10:10)")+
+  labs(y= "Probability")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+probability_bar1
+```
+
+#Conclusion
+
+Based on the day to day relative change of the currencies, we have some insight on how the market fluctuates.
+We saw that the relative change showed that there was an inverse relationship between Bitcoin and most of the currencies.
+Bitcoin Cash, Dash, Ethereum, Litecoin, and Ripple's decrease most days with few large increases making up for the losses.
+While Bitcoin and Tether increase most days, with large drops evening it out.
+
+When we looked at the gain to loss ratio, Bitcoin and Tether had a surplus in increases over losses, while the other 5 had a ratio of below 1.
+This supports the previous conclusion that there are more gains than losses and when we look at probabilities of this. We see that Bitcoin and Tether have a chance of increase more than 50% in a given day.
+
+For someone that is interested in investing in Cryptocurrency, based on the analysis above, their best bet would be to invest in Bitcoin since.
+Since there isn't much more information on Tether, more in depth research needs to be done for a conclusion. If someone is looking to invest in another currency, the data tells us that Litecoin has the highest upside.
+
+Overall, since the market moves so fast, a day to day analysis might not be enough to come up with an accurate assumption.
+
+
+
